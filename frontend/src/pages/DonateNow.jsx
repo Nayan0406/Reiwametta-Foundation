@@ -26,6 +26,48 @@ const DonateNow = () => {
     });
   };
 
+  // Function to save payment data to database
+  const savePaymentToDatabase = async (paymentData) => {
+    try {
+      console.log('Saving payment data:', paymentData); // Debug log
+      
+      // Clean and validate data before sending
+      const cleanData = {
+        paymentId: String(paymentData.paymentId || ''),
+        amount: Number(paymentData.amount) || 0,
+        name: String(paymentData.name || ''),
+        email: String(paymentData.email || ''),
+        contact: String(paymentData.contact || ''),
+        address: String(paymentData.address || ''),
+        pincode: String(paymentData.pincode || ''),
+        message: String(paymentData.message || '')
+      };
+      
+      console.log('Clean data to send:', cleanData);
+      
+      const response = await fetch("http://localhost:8080/save-payment", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(cleanData),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Payment saved to database:', result);
+      alert('Payment data saved successfully!');
+    } catch (error) {
+      console.error('Error saving payment to database:', error);
+      alert('Failed to save payment data: ' + error.message);
+    }
+  };
+
   const handlePayment = async () => {
     const res = await loadRazorpayScript();
     if (!res) {
@@ -40,13 +82,24 @@ const DonateNow = () => {
       name: "Reiwametta Foundation",
       description: autoPay ? "Monthly Recurring Donation" : "Donation",
       image: "/logo.png", // Path to your logo in public folder
-      handler: function (response) {
+      handler: async function (response) {
         if (autoPay) {
           alert("Subscription successful! Subscription ID: " + response.razorpay_subscription_id);
+          // Subscription data is already saved when created in backend
         } else {
           alert("Payment successful! Payment ID: " + response.razorpay_payment_id);
+          // Save one-time payment to database
+          await savePaymentToDatabase({
+            paymentId: response.razorpay_payment_id,
+            amount: selectedAmount,
+            name: formData.name,
+            email: formData.email,
+            contact: formData.contact,
+            address: formData.address,
+            pincode: formData.pincode,
+            message: formData.message,
+          });
         }
-        console.log("User Message:", formData.message); // You can send this to your backend
       },
       prefill: {
         name: formData.name,
@@ -54,14 +107,14 @@ const DonateNow = () => {
         contact: formData.contact,
       },
       theme: {
-        color: "#bg-yellow-500",
+        color: "#EAB308",
       },
     };
 
     if (autoPay) {
       // Call backend to create a real subscription and get subscription_id
       try {
-        const response = await fetch("https://backend.reiwamettafoundations.org/", {
+        const response = await fetch("http://localhost:8080/create-subscription", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -69,6 +122,9 @@ const DonateNow = () => {
             name: formData.name,
             email: formData.email,
             contact: formData.contact,
+            address: formData.address,
+            pincode: formData.pincode,
+            message: formData.message,
           }),
         });
         const data = await response.json();
@@ -216,19 +272,7 @@ const DonateNow = () => {
       {showForm && (
         <button
           onClick={handlePayment}
-          disabled={
-            !selectedAmount ||
-            !formData.name ||
-            !formData.email ||
-            !formData.contact ||
-            !formData.address ||
-            !formData.pincode
-          }
-          className={`w-full py-3 mt-4 rounded-xl font-bold text-lg shadow-md transition-all duration-200 focus:outline-none focus:ring-2  cursor-pointer ${
-            selectedAmount && formData.name && formData.email && formData.contact && formData.address && formData.pincode
-              ? 'bg-yellow-500 text-white hover:bg-yellow-500 scale-105'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
+          className="w-full py-3 mt-4 rounded-xl font-bold text-lg shadow-md transition-all duration-200 focus:outline-none focus:ring-2 bg-yellow-500 text-white hover:bg-yellow-600 scale-105 cursor-pointer"
         >
           Donate ₹{selectedAmount}
         </button>

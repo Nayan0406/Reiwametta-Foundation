@@ -40,7 +40,7 @@ const Contribute = () => {
                             </p>
 
                             <Link to="/donateNow">
-                                <button className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600 transition-colors">
+                                <button className="bg-yellow-500 text-white px-4 py-2 rounded cursor-pointer  transition-colors">
                                     Donate Now
                                 </button>
                             </Link>

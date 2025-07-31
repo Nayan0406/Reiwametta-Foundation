@@ -38,6 +38,7 @@ const Navbar = () => {
     { name: "Events", to: "/event" },
     { name: "Our Initiative", to: "/initiative" },
     { name: "Contribute", to: "/contribute" },
+    { name: "Donate Now", to: "/donatenow" },
   ];
 
   const socialIcons = [
