@@ -12,6 +12,7 @@ import SrcForm from "./SrcForm";
 import HomeContent from "./HomeContent";
 import Mentors from "./Mentors";
 import Educators from "./Educators";
+import Donars from "./Donars";
 // import ProgramManager from "./ProgramManager";
 
 const AdminPanel = () => {
@@ -31,7 +32,8 @@ const AdminPanel = () => {
     { id: "HomeContent", label: "HomeContent", icon: Settings },
     { id: "Mentors", label: "Mentors", icon: Settings },
     // { id: "ProgramManager", label: "Program Manager", icon: BarChart },
-     { id: "Educators", label: "Educators", icon: Settings }
+    { id: "Educators", label: "Educators", icon: Settings },
+    { id: "Donars", label: "Donars", icon: Users }
   ];
 
   const renderContent = () => {
@@ -58,6 +60,8 @@ const AdminPanel = () => {
           return <Mentors />;
         case "Educators":
           return <Educators />;
+        case "Donars":
+          return <Donars />;
      
       default:
         return <AdminDashboard />;

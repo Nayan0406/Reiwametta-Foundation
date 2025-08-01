@@ -13,6 +13,7 @@ import SrcForm from "./pages/SrcForm";
 import HomeContent from "./pages/HomeContent";
 import Mentors from './pages/Mentors';
 import Educators from './pages/Educators';
+import Donars from './pages/Donars';
 
 const App = () => {
   return (
@@ -42,6 +43,8 @@ const App = () => {
       <Route path="/mentors" element={<Mentors />} />
 
       <Route path="/educators" element={<Educators />} />
+
+      <Route path="/donars" element={<Donars />} />
     </Routes>
   );
 };

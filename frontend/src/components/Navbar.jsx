@@ -38,7 +38,7 @@ const Navbar = () => {
     { name: "Events", to: "/event" },
     { name: "Our Initiative", to: "/initiative" },
     { name: "Contribute", to: "/contribute" },
-    { name: "Donate Now", to: "/donatenow" },
+    // Removed "Donate Now" from mobile menu since it's now always visible
   ];
 
   const socialIcons = [
@@ -95,6 +95,14 @@ const Navbar = () => {
               ))}
             </div>
 
+            {/* Donate Now Button - Desktop */}
+            <Link
+              to="/donatenow"
+              className="bg-yellow-500 text-white px-6 py-2 rounded-full hover:bg-yellow-600 transition-colors duration-300 text-sm font-medium"
+            >
+              Donate Now
+            </Link>
+
             {/* Social Icons */}
             <div className="flex items-center space-x-4">
               {socialIcons.map(({ Icon, href }, index) => (
@@ -119,8 +127,17 @@ const Navbar = () => {
             </button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
+          {/* Mobile/Tablet Donate Button and Menu */}
+          <div className="lg:hidden flex items-center space-x-3">
+            {/* Donate Now Button - Always visible on mobile/tablet */}
+            <Link
+              to="/donatenow"
+              className="bg-yellow-500 text-white px-4 py-2 rounded-full hover:bg-yellow-600 transition-colors duration-300 text-sm font-medium"
+            >
+              Donate Now
+            </Link>
+            
+            {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-700 hover:text-yellow-500 focus:outline-none"
