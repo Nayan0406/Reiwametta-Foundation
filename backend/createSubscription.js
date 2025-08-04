@@ -15,7 +15,11 @@ mongoose.connect(process.env.MONGO_DB_URI).then(() => {
 
 const app = express();
 app.use(cors({ 
-  origin: ['http://localhost:5173', "https://reiwametta-foundation-frontend.vercel.app/"],
+  origin: [
+    'http://localhost:5173', 
+    'https://reiwametta-foundation-u2nc-j0fns1bav-nayans-projects-fc64f29a.vercel.app',
+    'https://reiwametta-foundation-frontend.vercel.app'
+  ],
   credentials: true 
 }));
 
@@ -50,10 +54,28 @@ const donationSchema = new mongoose.Schema({
 
 const Donation = mongoose.model('Donation', donationSchema);
 
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    status: '✅ Backend is running',
+    timestamp: new Date().toISOString(),
+    mongodb: mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected',
+    razorpay_key: process.env.RAZORPAY_KEY_ID ? '✅ Configured' : '❌ Missing',
+    cors_origins: [
+      'http://localhost:5173', 
+      'https://reiwametta-foundation-u2nc-j0fns1bav-nayans-projects-fc64f29a.vercel.app',
+      'https://reiwametta-foundation-frontend.vercel.app'
+    ]
+  });
+});
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID, // set in .env
   key_secret: process.env.RAZORPAY_KEY_SECRET, // set in .env
 });
+
+console.log('🔑 Razorpay Key ID configured:', process.env.RAZORPAY_KEY_ID ? 'YES' : 'NO');
+console.log('🔐 Razorpay Secret configured:', process.env.RAZORPAY_KEY_SECRET ? 'YES' : 'NO');
 
 // POST /create-subscription
 app.post('/create-subscription', async (req, res) => {

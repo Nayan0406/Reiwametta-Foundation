@@ -83,6 +83,7 @@ const DonateNow = () => {
       description: autoPay ? "Monthly Recurring Donation" : "Donation",
       image: "/logo.png", // Path to your logo in public folder
       handler: async function (response) {
+        console.log('✅ Payment successful!', response);
         if (autoPay) {
           alert("Subscription successful! Subscription ID: " + response.razorpay_subscription_id);
           // Subscription data is already saved when created in backend
@@ -99,6 +100,11 @@ const DonateNow = () => {
             pincode: formData.pincode,
             message: formData.message,
           });
+        }
+      },
+      modal: {
+        ondismiss: function() {
+          console.log('❌ Payment modal dismissed by user');
         }
       },
       prefill: {
