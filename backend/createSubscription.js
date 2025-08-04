@@ -5,18 +5,23 @@ const cors = require('cors');
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-console.log("Attempting to connect to MongoDB with URI:", process.env.MONGO_DB_URI);
+// Check environment variables
+console.log("🔍 Environment variable check:");
+console.log("MONGO_DB_URI:", process.env.MONGO_DB_URI ? "✅ Set" : "❌ Missing");
+console.log("RAZORPAY_KEY_ID:", process.env.RAZORPAY_KEY_ID ? "✅ Set" : "❌ Missing");
+console.log("RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "✅ Set" : "❌ Missing");
+console.log("RAZORPAY_PLAN_ID:", process.env.RAZORPAY_PLAN_ID ? "✅ Set" : "❌ Missing");
+
+console.log("Attempting to connect to MongoDB...");
+console.log("Connection URI format check:", process.env.MONGO_DB_URI ? "✅ URI provided" : "❌ URI missing");
 mongoose.connect(process.env.MONGO_DB_URI, {
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-  socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+  serverSelectionTimeoutMS: 10000, // Increase timeout to 10s
+  socketTimeoutMS: 45000,
+  family: 4 // Use IPv4, skip trying IPv6
 }).then(() => {
   console.log("✅ MongoDB connected successfully");
 }).catch(err => {
   console.error("❌ MongoDB connection error:", err.message);
-  console.log("🔧 Possible solutions:");
-  console.log("1. Check if your IP is whitelisted in MongoDB Atlas");
-  console.log("2. Verify your connection string is correct");
-  console.log("3. Ensure network access is configured properly");
   console.log("⚠️  Server will continue running, but database operations may fail");
 });
 
@@ -77,6 +82,7 @@ app.get('/', (req, res) => {
     mongodb: mongoStatusText,
     mongodb_ready: mongoStatus === 1,
     razorpay_key: process.env.RAZORPAY_KEY_ID ? '✅ Configured' : '❌ Missing',
+    razorpay_key_preview: process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 12) + '...' : 'Not set',
     cors_origins: [
       'http://localhost:5173', 
       'https://reiwametta-foundation-u2nc-j0fns1bav-nayans-projects-fc64f29a.vercel.app',
@@ -84,6 +90,37 @@ app.get('/', (req, res) => {
     ],
     help: mongoStatus !== 1 ? 'If MongoDB is not connected, whitelist Vercel IPs in MongoDB Atlas Network Access' : null
   });
+});
+
+// Test Razorpay connection endpoint
+app.get('/test-razorpay', async (req, res) => {
+  try {
+    console.log('🧪 Testing Razorpay connection...');
+    
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ 
+        error: 'Razorpay credentials not configured',
+        key_id: process.env.RAZORPAY_KEY_ID ? 'Set' : 'Missing',
+        key_secret: process.env.RAZORPAY_KEY_SECRET ? 'Set' : 'Missing'
+      });
+    }
+
+    // Try to fetch payment methods to test the connection
+    const result = await razorpay.payments.all({ count: 1 });
+    
+    res.json({
+      status: '✅ Razorpay connection successful',
+      key_id: process.env.RAZORPAY_KEY_ID.substring(0, 12) + '...',
+      test_result: 'API accessible'
+    });
+  } catch (error) {
+    console.error('❌ Razorpay test failed:', error);
+    res.status(500).json({
+      error: 'Razorpay connection failed',
+      message: error.message,
+      key_id: process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 12) + '...' : 'Not set'
+    });
+  }
 });
 
 const razorpay = new Razorpay({

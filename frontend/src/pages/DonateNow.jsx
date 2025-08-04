@@ -69,6 +69,24 @@ const DonateNow = () => {
   };
 
   const handlePayment = async () => {
+    // Validate required fields
+    if (!formData.name.trim()) {
+      alert('Please enter your name');
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      alert('Please enter your email');
+      return;
+    }
+    
+    if (!formData.contact.trim()) {
+      alert('Please enter your contact number');
+      return;
+    }
+
+    console.log('✅ Form validation passed, proceeding with payment');
+
     const res = await loadRazorpayScript();
     if (!res) {
       alert("Razorpay SDK failed to load. Check your internet connection.");
@@ -120,38 +138,69 @@ const DonateNow = () => {
     if (autoPay) {
       // Call backend to create a real subscription and get subscription_id
       try {
+        console.log('🔄 Creating subscription...');
+        const subscriptionPayload = {
+          amount: selectedAmount,
+          name: formData.name,
+          email: formData.email,
+          contact: formData.contact,
+          address: formData.address,
+          pincode: formData.pincode,
+          message: formData.message,
+        };
+        
+        console.log('📤 Sending subscription request:', subscriptionPayload);
+
         const response = await fetch("https://reiwametta-foundation.vercel.app/create-subscription", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: selectedAmount,
-            name: formData.name,
-            email: formData.email,
-            contact: formData.contact,
-            address: formData.address,
-            pincode: formData.pincode,
-            message: formData.message,
-          }),
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(subscriptionPayload),
         });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Subscription creation failed:', response.status, errorText);
+          throw new Error(`Failed to create subscription: ${response.status} ${errorText}`);
+        }
+        
         const data = await response.json();
+        console.log('✅ Subscription created:', data);
+        
         if (!data.subscription_id) {
+          console.error('❌ No subscription_id in response:', data);
           alert("Failed to create subscription. Please try again.");
           return;
         }
+        
         options.subscription_id = data.subscription_id;
         delete options.amount; // Remove amount for subscriptions
+        console.log('✅ Updated options for subscription:', options);
       } catch (err) {
+        console.error('❌ Subscription creation error:', err);
         alert("Error creating subscription: " + err.message);
         return;
       }
     }
 
-    console.log('Payload sent to Razorpay API:', {
-      key_id: 'rzp_live_VmUHSwmTktjf2l',
-      options: options
+    console.log('🚀 Initializing Razorpay payment with options:', {
+      key: options.key,
+      amount: options.amount,
+      currency: options.currency,
+      name: options.name,
+      prefill: options.prefill
     });
 
     const paymentObject = new window.Razorpay(options);
+    
+    // Add error handling for Razorpay
+    paymentObject.on('payment.failed', function (response) {
+      console.error('❌ Payment failed:', response.error);
+      alert('Payment failed: ' + response.error.description);
+    });
+
     paymentObject.open();
   };
 
