@@ -6,11 +6,18 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 
 console.log("Attempting to connect to MongoDB with URI:", process.env.MONGO_DB_URI);
-mongoose.connect(process.env.MONGO_DB_URI).then(() => {
-  console.log("MongoDB connected successfully");
+mongoose.connect(process.env.MONGO_DB_URI, {
+  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+  socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+}).then(() => {
+  console.log("✅ MongoDB connected successfully");
 }).catch(err => {
-  console.error("MongoDB connection error:", err);
-  console.log("Server will continue running, but database operations may fail");
+  console.error("❌ MongoDB connection error:", err.message);
+  console.log("🔧 Possible solutions:");
+  console.log("1. Check if your IP is whitelisted in MongoDB Atlas");
+  console.log("2. Verify your connection string is correct");
+  console.log("3. Ensure network access is configured properly");
+  console.log("⚠️  Server will continue running, but database operations may fail");
 });
 
 const app = express();
@@ -56,16 +63,26 @@ const Donation = mongoose.model('Donation', donationSchema);
 
 // Health check endpoint
 app.get('/', (req, res) => {
+  const mongoStatus = mongoose.connection.readyState;
+  const mongoStatusText = {
+    0: '❌ Disconnected',
+    1: '✅ Connected', 
+    2: '🔄 Connecting',
+    3: '⚠️  Disconnecting'
+  }[mongoStatus] || '❓ Unknown';
+
   res.json({ 
     status: '✅ Backend is running',
     timestamp: new Date().toISOString(),
-    mongodb: mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected',
+    mongodb: mongoStatusText,
+    mongodb_ready: mongoStatus === 1,
     razorpay_key: process.env.RAZORPAY_KEY_ID ? '✅ Configured' : '❌ Missing',
     cors_origins: [
       'http://localhost:5173', 
       'https://reiwametta-foundation-u2nc-j0fns1bav-nayans-projects-fc64f29a.vercel.app',
       'https://reiwametta-foundation-frontend.vercel.app'
-    ]
+    ],
+    help: mongoStatus !== 1 ? 'If MongoDB is not connected, whitelist Vercel IPs in MongoDB Atlas Network Access' : null
   });
 });
 
@@ -122,6 +139,14 @@ app.post('/create-subscription', async (req, res) => {
 
     // Save donation record to database
     try {
+      if (mongoose.connection.readyState !== 1) {
+        console.log('⚠️  MongoDB not connected, skipping database save');
+        return res.json({ 
+          subscription_id: subscription.id,
+          warning: 'Database not available - subscription created but not saved locally'
+        });
+      }
+
       const donation = new Donation({
         name,
         email,
@@ -136,9 +161,9 @@ app.post('/create-subscription', async (req, res) => {
       });
       
       await donation.save();
-      console.log('Donation record saved to database');
+      console.log('✅ Donation record saved to database');
     } catch (dbError) {
-      console.error('Database save error (subscription still created):', dbError);
+      console.error('❌ Database save error (subscription still created):', dbError.message);
       // Continue even if database save fails - subscription was created
     }
 
@@ -152,7 +177,15 @@ app.post('/create-subscription', async (req, res) => {
 // POST /save-payment - for one-time donations
 app.post('/save-payment', async (req, res) => {
   try {
-    console.log('Received payment data:', req.body); // Debug log
+    console.log('💰 Received payment data:', req.body);
+    
+    if (mongoose.connection.readyState !== 1) {
+      console.log('⚠️  MongoDB not connected, payment received but not saved');
+      return res.json({ 
+        success: true, 
+        warning: 'Payment successful but database not available for saving'
+      });
+    }
     
     const { paymentId, amount, name, email, contact, address, pincode, message } = req.body;
     
@@ -175,10 +208,10 @@ app.post('/save-payment', async (req, res) => {
     });
     
     await donation.save();
-    console.log('One-time donation saved to database');
+    console.log('✅ One-time donation saved to database');
     res.json({ success: true, message: 'Donation saved successfully' });
   } catch (err) {
-    console.error('Error saving payment:', err);
+    console.error('❌ Error saving payment:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
