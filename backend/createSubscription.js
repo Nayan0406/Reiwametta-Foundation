@@ -41,7 +41,6 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'https://reiwametta-foundation-frontend.vercel.app',
-    'https://reiwametta-foundation-frontend.vercel.app/',
   ],
   credentials: true 
 }));
