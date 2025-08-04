@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
 
+// Filter out harmless Razorpay analytics errors from console
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const message = args.join(' ');
+  // Ignore harmless Razorpay tracking errors
+  if (message.includes('lumberjack.razorpay.com') || 
+      message.includes('POST https://lumberjack.razorpay.com')) {
+    return; // Don't log these harmless errors
+  }
+  originalConsoleError.apply(console, args);
+};
+
 const amountOptions = [100, 250, 500, 1000, 2000];
 
 const DonateNow = () => {
@@ -20,8 +32,15 @@ const DonateNow = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
+      script.onload = () => {
+        console.log('✅ Razorpay SDK loaded successfully');
+        // Note: You may see 400 errors from lumberjack.razorpay.com in console - these are harmless Razorpay analytics errors
+        resolve(true);
+      };
+      script.onerror = () => {
+        console.error('❌ Failed to load Razorpay SDK');
+        resolve(false);
+      };
       document.body.appendChild(script);
     });
   };
