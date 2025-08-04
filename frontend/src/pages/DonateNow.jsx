@@ -1,17 +1,5 @@
 import React, { useState } from 'react';
 
-// Filter out harmless Razorpay analytics errors from console
-const originalConsoleError = console.error;
-console.error = (...args) => {
-  const message = args.join(' ');
-  // Ignore harmless Razorpay tracking errors
-  if (message.includes('lumberjack.razorpay.com') || 
-      message.includes('POST https://lumberjack.razorpay.com')) {
-    return; // Don't log these harmless errors
-  }
-  originalConsoleError.apply(console, args);
-};
-
 const amountOptions = [100, 250, 500, 1000, 2000];
 
 const DonateNow = () => {
@@ -32,15 +20,8 @@ const DonateNow = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => {
-        console.log('✅ Razorpay SDK loaded successfully');
-        // Note: You may see 400 errors from lumberjack.razorpay.com in console - these are harmless Razorpay analytics errors
-        resolve(true);
-      };
-      script.onerror = () => {
-        console.error('❌ Failed to load Razorpay SDK');
-        resolve(false);
-      };
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
       document.body.appendChild(script);
     });
   };
@@ -88,24 +69,6 @@ const DonateNow = () => {
   };
 
   const handlePayment = async () => {
-    // Validate required fields
-    if (!formData.name.trim()) {
-      alert('Please enter your name');
-      return;
-    }
-    
-    if (!formData.email.trim()) {
-      alert('Please enter your email');
-      return;
-    }
-    
-    if (!formData.contact.trim()) {
-      alert('Please enter your contact number');
-      return;
-    }
-
-    console.log('✅ Form validation passed, proceeding with payment');
-
     const res = await loadRazorpayScript();
     if (!res) {
       alert("Razorpay SDK failed to load. Check your internet connection.");
@@ -120,7 +83,6 @@ const DonateNow = () => {
       description: autoPay ? "Monthly Recurring Donation" : "Donation",
       image: "/logo.png", // Path to your logo in public folder
       handler: async function (response) {
-        console.log('✅ Payment successful!', response);
         if (autoPay) {
           alert("Subscription successful! Subscription ID: " + response.razorpay_subscription_id);
           // Subscription data is already saved when created in backend
@@ -139,11 +101,6 @@ const DonateNow = () => {
           });
         }
       },
-      modal: {
-        ondismiss: function() {
-          console.log('❌ Payment modal dismissed by user');
-        }
-      },
       prefill: {
         name: formData.name,
         email: formData.email,
@@ -157,69 +114,33 @@ const DonateNow = () => {
     if (autoPay) {
       // Call backend to create a real subscription and get subscription_id
       try {
-        console.log('🔄 Creating subscription...');
-        const subscriptionPayload = {
-          amount: selectedAmount,
-          name: formData.name,
-          email: formData.email,
-          contact: formData.contact,
-          address: formData.address,
-          pincode: formData.pincode,
-          message: formData.message,
-        };
-        
-        console.log('📤 Sending subscription request:', subscriptionPayload);
-
         const response = await fetch("https://reiwametta-foundation.vercel.app/create-subscription", {
           method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify(subscriptionPayload),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: selectedAmount,
+            name: formData.name,
+            email: formData.email,
+            contact: formData.contact,
+            address: formData.address,
+            pincode: formData.pincode,
+            message: formData.message,
+          }),
         });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('❌ Subscription creation failed:', response.status, errorText);
-          throw new Error(`Failed to create subscription: ${response.status} ${errorText}`);
-        }
-        
         const data = await response.json();
-        console.log('✅ Subscription created:', data);
-        
         if (!data.subscription_id) {
-          console.error('❌ No subscription_id in response:', data);
           alert("Failed to create subscription. Please try again.");
           return;
         }
-        
         options.subscription_id = data.subscription_id;
         delete options.amount; // Remove amount for subscriptions
-        console.log('✅ Updated options for subscription:', options);
       } catch (err) {
-        console.error('❌ Subscription creation error:', err);
         alert("Error creating subscription: " + err.message);
         return;
       }
     }
 
-    console.log('🚀 Initializing Razorpay payment with options:', {
-      key: options.key,
-      amount: options.amount,
-      currency: options.currency,
-      name: options.name,
-      prefill: options.prefill
-    });
-
     const paymentObject = new window.Razorpay(options);
-    
-    // Add error handling for Razorpay
-    paymentObject.on('payment.failed', function (response) {
-      console.error('❌ Payment failed:', response.error);
-      alert('Payment failed: ' + response.error.description);
-    });
-
     paymentObject.open();
   };
 
@@ -272,7 +193,7 @@ const DonateNow = () => {
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          placeholder="Enter amount (min ₹1)"
+          placeholder="Enter amount (min ₹100)"
           value={customAmount}
           onChange={handleCustomAmountChange}
           className="w-48 p-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 text-center text-lg font-semibold text-yellow-500 shadow-sm"

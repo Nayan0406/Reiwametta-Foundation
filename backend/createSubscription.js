@@ -28,9 +28,8 @@ mongoose.connect(process.env.MONGO_DB_URI, {
 const app = express();
 app.use(cors({ 
   origin: [
-    'http://localhost:5173', 
-    'https://reiwametta-foundation-u2nc-j0fns1bav-nayans-projects-fc64f29a.vercel.app',
-    'https://reiwametta-foundation-frontend.vercel.app'
+    'http://localhost:5173',
+    'https://reiwametta-foundation-frontend.vercel.app/',
   ],
   credentials: true 
 }));
@@ -84,9 +83,8 @@ app.get('/', (req, res) => {
     razorpay_key: process.env.RAZORPAY_KEY_ID ? '✅ Configured' : '❌ Missing',
     razorpay_key_preview: process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 12) + '...' : 'Not set',
     cors_origins: [
-      'http://localhost:5173', 
-      'https://reiwametta-foundation-u2nc-j0fns1bav-nayans-projects-fc64f29a.vercel.app',
-      'https://reiwametta-foundation-frontend.vercel.app'
+      'http://localhost:5173',
+      'https://reiwametta-foundation-frontend.vercel.app/'
     ],
     help: mongoStatus !== 1 ? 'If MongoDB is not connected, whitelist Vercel IPs in MongoDB Atlas Network Access' : null
   });
