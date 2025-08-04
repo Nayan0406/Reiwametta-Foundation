@@ -54,13 +54,18 @@ const razorpay = new Razorpay({
 
 // POST /create-subscription
 app.post('/create-subscription', async (req, res) => {
+  console.log('=== CREATE SUBSCRIPTION REQUEST ===');
+  console.log('Request body:', req.body);
+  console.log('Request headers:', req.headers);
+  
   const { amount, name, email, contact, address, pincode, message } = req.body;
-  console.log('Received subscription request:', { amount, name, email, contact });
+  console.log('Received subscription request:', { amount, name, email, contact, address, pincode, message });
   
   try {
     // Validate required fields
     if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Valid amount is required' });
+      console.log('Validation failed: Invalid amount:', amount);
+      return res.status(400).json({ error: 'Valid amount is required', received: amount });
     }
 
     // Create a plan if you don't have one already (do this once in dashboard or via API)
@@ -68,6 +73,7 @@ app.post('/create-subscription', async (req, res) => {
     const plan_id = process.env.RAZORPAY_PLAN_ID; // set in .env (create plan in dashboard)
     
     if (!plan_id) {
+      console.log('Validation failed: No plan ID configured');
       return res.status(500).json({ error: 'Razorpay plan ID not configured' });
     }
     
