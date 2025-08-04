@@ -14,21 +14,33 @@ console.log("RAZORPAY_PLAN_ID:", process.env.RAZORPAY_PLAN_ID ? "✅ Set" : "❌
 
 console.log("Attempting to connect to MongoDB...");
 console.log("Connection URI format check:", process.env.MONGO_DB_URI ? "✅ URI provided" : "❌ URI missing");
-mongoose.connect(process.env.MONGO_DB_URI, {
-  serverSelectionTimeoutMS: 10000, // Increase timeout to 10s
-  socketTimeoutMS: 45000,
-  family: 4 // Use IPv4, skip trying IPv6
-}).then(() => {
-  console.log("✅ MongoDB connected successfully");
-}).catch(err => {
-  console.error("❌ MongoDB connection error:", err.message);
-  console.log("⚠️  Server will continue running, but database operations may fail");
-});
+
+// Add retry logic for MongoDB connection
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_DB_URI, {
+      serverSelectionTimeoutMS: 30000, // Increase timeout to 30s
+      socketTimeoutMS: 45000,
+      family: 4, // Use IPv4, skip trying IPv6
+      maxPoolSize: 10,
+      retryWrites: true,
+      w: 'majority'
+    });
+    console.log("✅ MongoDB connected successfully");
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err.message);
+    console.log("🔄 Retrying MongoDB connection in 5 seconds...");
+    setTimeout(connectDB, 5000); // Retry after 5 seconds
+  }
+};
+
+connectDB();
 
 const app = express();
 app.use(cors({ 
   origin: [
     'http://localhost:5173',
+    'https://reiwametta-foundation-frontend.vercel.app',
     'https://reiwametta-foundation-frontend.vercel.app/',
   ],
   credentials: true 
@@ -80,12 +92,20 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     mongodb: mongoStatusText,
     mongodb_ready: mongoStatus === 1,
+    mongodb_state_code: mongoStatus,
     razorpay_key: process.env.RAZORPAY_KEY_ID ? '✅ Configured' : '❌ Missing',
     razorpay_key_preview: process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 12) + '...' : 'Not set',
     cors_origins: [
       'http://localhost:5173',
+      'https://reiwametta-foundation-frontend.vercel.app',
       'https://reiwametta-foundation-frontend.vercel.app/'
     ],
+    environment_vars: {
+      MONGO_DB_URI: process.env.MONGO_DB_URI ? '✅ Set' : '❌ Missing',
+      RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ? '✅ Set' : '❌ Missing',
+      RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ? '✅ Set' : '❌ Missing',
+      RAZORPAY_PLAN_ID: process.env.RAZORPAY_PLAN_ID ? '✅ Set' : '❌ Missing'
+    },
     help: mongoStatus !== 1 ? 'If MongoDB is not connected, whitelist Vercel IPs in MongoDB Atlas Network Access' : null
   });
 });
@@ -213,22 +233,34 @@ app.post('/create-subscription', async (req, res) => {
 app.post('/save-payment', async (req, res) => {
   try {
     console.log('💰 Received payment data:', req.body);
+    console.log('🔍 MongoDB connection state:', mongoose.connection.readyState);
     
     if (mongoose.connection.readyState !== 1) {
       console.log('⚠️  MongoDB not connected, payment received but not saved');
-      return res.json({ 
-        success: true, 
-        warning: 'Payment successful but database not available for saving'
+      console.log('📊 Connection states: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting');
+      console.log('🔧 Current state:', mongoose.connection.readyState);
+      
+      return res.status(503).json({ 
+        success: false,
+        error: 'Database not available',
+        mongodb_state: mongoose.connection.readyState,
+        message: 'Payment successful but database not available for saving'
       });
     }
     
     const { paymentId, amount, name, email, contact, address, pincode, message } = req.body;
     
-    // Only validate paymentId and amount as required
+    // Validate required fields
     if (!paymentId || !amount) {
-      return res.status(400).json({ error: 'Missing payment ID or amount' });
+      console.log('❌ Validation failed: Missing required fields');
+      console.log('PaymentId:', paymentId, 'Amount:', amount);
+      return res.status(400).json({ 
+        error: 'Missing payment ID or amount',
+        received: { paymentId, amount }
+      });
     }
     
+    console.log('✅ Creating donation record...');
     const donation = new Donation({
       name: String(name || ''),
       email: String(email || ''),
@@ -242,23 +274,97 @@ app.post('/save-payment', async (req, res) => {
       message: String(message || '')
     });
     
-    await donation.save();
-    console.log('✅ One-time donation saved to database');
-    res.json({ success: true, message: 'Donation saved successfully' });
+    console.log('💾 Saving to database...');
+    const savedDonation = await donation.save();
+    console.log('✅ One-time donation saved to database with ID:', savedDonation._id);
+    
+    res.json({ 
+      success: true, 
+      message: 'Donation saved successfully',
+      donationId: savedDonation._id,
+      paymentId: paymentId
+    });
   } catch (err) {
     console.error('❌ Error saving payment:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('📋 Full error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message,
+      details: err.name
+    });
   }
 });
 
 // GET /donations - to fetch all donations
 app.get('/donations', async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        error: 'Database not connected',
+        mongodb_state: mongoose.connection.readyState
+      });
+    }
+    
     const donations = await Donation.find().sort({ createdAt: -1 });
-    res.json(donations);
+    console.log(`📊 Fetched ${donations.length} donations from database`);
+    res.json({
+      success: true,
+      count: donations.length,
+      donations: donations
+    });
   } catch (err) {
     console.error('Error fetching donations:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Test database connection endpoint
+app.get('/test-db', async (req, res) => {
+  try {
+    console.log('🧪 Testing database connection...');
+    
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        status: 'Database not connected',
+        mongodb_state: mongoose.connection.readyState,
+        state_meaning: {
+          0: 'Disconnected',
+          1: 'Connected',
+          2: 'Connecting', 
+          3: 'Disconnecting'
+        }[mongoose.connection.readyState]
+      });
+    }
+    
+    // Try to perform a simple operation
+    const testDoc = new Donation({
+      name: 'Test User',
+      email: 'test@example.com',
+      amount: 1,
+      isRecurring: false,
+      paymentId: 'test_payment_' + Date.now(),
+      status: 'test'
+    });
+    
+    const saved = await testDoc.save();
+    console.log('✅ Test document saved with ID:', saved._id);
+    
+    // Delete the test document
+    await Donation.deleteOne({ _id: saved._id });
+    console.log('🗑️ Test document deleted');
+    
+    res.json({
+      status: '✅ Database connection working',
+      test_result: 'Successfully created and deleted test document',
+      mongodb_state: mongoose.connection.readyState
+    });
+  } catch (err) {
+    console.error('❌ Database test failed:', err);
+    res.status(500).json({
+      status: 'Database test failed',
+      error: err.message,
+      mongodb_state: mongoose.connection.readyState
+    });
   }
 });
 

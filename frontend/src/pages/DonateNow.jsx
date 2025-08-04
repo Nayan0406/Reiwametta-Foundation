@@ -29,7 +29,7 @@ const DonateNow = () => {
   // Function to save payment data to database
   const savePaymentToDatabase = async (paymentData) => {
     try {
-      console.log('Saving payment data:', paymentData); // Debug log
+      console.log('💾 Saving payment data:', paymentData); // Debug log
       
       // Clean and validate data before sending
       const cleanData = {
@@ -43,7 +43,7 @@ const DonateNow = () => {
         message: String(paymentData.message || '')
       };
       
-      console.log('Clean data to send:', cleanData);
+      console.log('📤 Clean data to send:', cleanData);
       
       const response = await fetch("https://reiwametta-foundation.vercel.app/save-payment", {
         method: "POST",
@@ -54,17 +54,27 @@ const DonateNow = () => {
         body: JSON.stringify(cleanData),
       });
       
+      console.log('📡 Response status:', response.status);
+      
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ Server response error:', errorText);
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
       
       const result = await response.json();
-      console.log('Payment saved to database:', result);
-      alert('Payment data saved successfully!');
+      console.log('✅ Payment saved to database:', result);
+      
+      if (result.success) {
+        alert('✅ Payment data saved successfully!');
+        console.log('💰 Donation ID:', result.donationId);
+      } else {
+        console.warn('⚠️ Database save warning:', result);
+        alert('⚠️ Payment successful but database save failed: ' + (result.error || 'Unknown error'));
+      }
     } catch (error) {
-      console.error('Error saving payment to database:', error);
-      alert('Failed to save payment data: ' + error.message);
+      console.error('❌ Error saving payment to database:', error);
+      alert('❌ Failed to save payment data: ' + error.message);
     }
   };
 
