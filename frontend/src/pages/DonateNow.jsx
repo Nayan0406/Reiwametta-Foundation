@@ -45,7 +45,7 @@ const DonateNow = () => {
       
       console.log('Clean data to send:', cleanData);
       
-      const response = await fetch("http://localhost:8080/save-payment", {
+      const response = await fetch("https://reiwametta-foundation.vercel.app/save-payment", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -114,7 +114,7 @@ const DonateNow = () => {
     if (autoPay) {
       // Call backend to create a real subscription and get subscription_id
       try {
-        const response = await fetch("http://localhost:8080/create-subscription", {
+        const response = await fetch("https://reiwametta-foundation.vercel.app/create-subscription", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -139,6 +139,11 @@ const DonateNow = () => {
         return;
       }
     }
+
+    console.log('Payload sent to Razorpay tracking API:', {
+      key_id: 'rzp_live_VmUHSwmTktjf2l',
+      ...options // Replace with actual payload variable
+    });
 
     const paymentObject = new window.Razorpay(options);
     paymentObject.open();
