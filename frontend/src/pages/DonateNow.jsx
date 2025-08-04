@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const amountOptions = [100, 250, 500, 1000, 2000];
 
@@ -15,6 +15,32 @@ const DonateNow = () => {
     pincode: '',
     message: '',
   });
+  const [sessionToken, setSessionToken] = useState('');
+
+  useEffect(() => {
+    // Fetch sessionToken from the backend on component mount
+    const fetchSessionToken = async () => {
+      try {
+        const response = await fetch("https://reiwametta-foundation.vercel.app/get-session-token", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch session token: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        setSessionToken(data.sessionToken);
+      } catch (error) {
+        console.error("Error fetching session token:", error);
+      }
+    };
+
+    fetchSessionToken();
+  }, []);
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -142,7 +168,7 @@ const DonateNow = () => {
 
     console.log('Payload sent to Razorpay API:', {
       key_id: 'rzp_live_VmUHSwmTktjf2l',
-      session_token: sessionToken, // Replace with actual session token variable
+      session_token: sessionToken, // Use the fetched session token
       ...options // Replace with actual payload variable
     });
 
