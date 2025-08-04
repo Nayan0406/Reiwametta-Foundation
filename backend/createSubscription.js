@@ -14,7 +14,10 @@ mongoose.connect(process.env.MONGO_DB_URI).then(() => {
 });
 
 const app = express();
-app.use(cors({ origin: true }));
+app.use(cors({ 
+  origin: ['http://localhost:5173', 'https://www.reiwamettafoundations.org', 'https://reiwametta-foundation-xs37.vercel.app', 'https://reiwametta-foundation-xs37-qsuzjhd67-nayans-projects-fc64f29a.vercel.app'],
+  credentials: true 
+}));
 
 // Use express.json() instead of bodyParser
 app.use(express.json({ limit: '10mb' }));
