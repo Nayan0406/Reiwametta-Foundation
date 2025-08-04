@@ -140,8 +140,9 @@ const DonateNow = () => {
       }
     }
 
-    console.log('Payload sent to Razorpay tracking API:', {
+    console.log('Payload sent to Razorpay API:', {
       key_id: 'rzp_live_VmUHSwmTktjf2l',
+      session_token: sessionToken, // Replace with actual session token variable
       ...options // Replace with actual payload variable
     });
 
