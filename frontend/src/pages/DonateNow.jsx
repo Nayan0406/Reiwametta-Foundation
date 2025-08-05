@@ -94,8 +94,18 @@ const DonateNow = () => {
       image: "/logo.png", // Path to your logo in public folder
       handler: async function (response) {
         if (autoPay) {
-          alert("Subscription successful! Subscription ID: " + response.razorpay_subscription_id);
-          // Subscription data is already saved when created in backend
+          alert("Monthly payment successful! Payment ID: " + response.razorpay_payment_id);
+          // Save recurring payment to database
+          await savePaymentToDatabase({
+            paymentId: response.razorpay_payment_id,
+            amount: selectedAmount,
+            name: formData.name,
+            email: formData.email,
+            contact: formData.contact,
+            address: formData.address,
+            pincode: formData.pincode,
+            message: formData.message + " (Monthly Recurring)",
+          });
         } else {
           alert("Payment successful! Payment ID: " + response.razorpay_payment_id);
           // Save one-time payment to database
@@ -120,7 +130,10 @@ const DonateNow = () => {
         color: "#EAB308",
       },
     };
-};
+    
+    const paymentObject = new window.Razorpay(options);
+    paymentObject.open();
+  };
 
   const handleAmountClick = (amount) => {
     setSelectedAmount(amount);
@@ -188,7 +201,7 @@ const DonateNow = () => {
           className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-400"
         />
         <label htmlFor="auto-pay" className="ml-2 text-yellow-500 font-medium select-none">
-          Auto Pay (Monthly Recurring)
+          Mark as Monthly Donation
         </label>
       </div>
 
