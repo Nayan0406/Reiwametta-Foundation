@@ -120,39 +120,7 @@ const DonateNow = () => {
         color: "#EAB308",
       },
     };
-
-    if (autoPay) {
-      // Call backend to create a real subscription and get subscription_id
-      try {
-        const response = await fetch("https://reiwametta-foundation.vercel.app/create-subscription", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: selectedAmount,
-            name: formData.name,
-            email: formData.email,
-            contact: formData.contact,
-            address: formData.address,
-            pincode: formData.pincode,
-            message: formData.message,
-          }),
-        });
-        const data = await response.json();
-        if (!data.subscription_id) {
-          alert("Failed to create subscription. Please try again.");
-          return;
-        }
-        options.subscription_id = data.subscription_id;
-        delete options.amount; // Remove amount for subscriptions
-      } catch (err) {
-        alert("Error creating subscription: " + err.message);
-        return;
-      }
-    }
-
-    const paymentObject = new window.Razorpay(options);
-    paymentObject.open();
-  };
+};
 
   const handleAmountClick = (amount) => {
     setSelectedAmount(amount);
