@@ -22,8 +22,9 @@ const connectDB = async () => {
     console.log("🔍 Connection URI (masked):", process.env.MONGO_DB_URI?.replace(/\/\/.*@/, '//***:***@'));
     
     await mongoose.connect(process.env.MONGO_DB_URI, {
-      serverSelectionTimeoutMS: 10000, // Reduce timeout to 10s for faster feedback
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 5000, // Fail fast - 5 seconds
+      connectTimeoutMS: 5000, // Connection timeout
+      socketTimeoutMS: 5000, // Socket timeout
       family: 4, // Use IPv4, skip trying IPv6
       maxPoolSize: 10,
       retryWrites: true,
@@ -37,8 +38,20 @@ const connectDB = async () => {
     if (err.reason) {
       console.error("🔍 Error reason:", err.reason);
     }
-    console.log("🔄 Retrying MongoDB connection in 5 seconds...");
-    setTimeout(connectDB, 5000); // Retry after 5 seconds
+    
+    // Common error messages and solutions
+    if (err.message.includes('ENOTFOUND')) {
+      console.error("💡 Solution: Check your cluster hostname in the connection string");
+    } else if (err.message.includes('authentication failed')) {
+      console.error("💡 Solution: Check your username and password in MongoDB Atlas");
+    } else if (err.message.includes('bad auth')) {
+      console.error("💡 Solution: Verify MongoDB user credentials");
+    } else if (err.message.includes('timeout')) {
+      console.error("� Solution: Check Network Access in MongoDB Atlas - add 0.0.0.0/0");
+    }
+    
+    console.log("�🔄 Retrying MongoDB connection in 10 seconds...");
+    setTimeout(connectDB, 10000); // Retry after 10 seconds
   }
 };
 
