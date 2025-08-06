@@ -56,42 +56,7 @@ const Contribute = () => {
                     </div>
                 </div>
             </div>
-
-
-            {/* Bank Details */}
-
-            <div className="max-w-4xl mx-auto p-6 md:p-8">
-                <div className="flex flex-col md:flex-row justify-between items-start gap-8">
-                    {/* Bank Details Section */}
-                    <div className="w-full md:w-2/3 space-y-4">
-                        {details.map((detail, index) => (
-                            <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                <span className="font-semibold text-gray-800 min-w-[180px]">
-                                    {detail.label}:
-                                </span>
-                                <span className="text-gray-700">
-                                    {detail.value}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* QR Code Section */}
-
-                    <div className="w-full md:w-1/3 flex flex-col items-center">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">
-                            Scan Me
-                        </h2>
-                        <div className="w-48 h-48 bg-white p-2 border border-gray-200 rounded-lg">
-                            <img
-                                src="/qr-code.png"
-                                alt="QR Code"
-                                className="w-full h-full"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
 
             {/* Donation Section */}
 
