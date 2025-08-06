@@ -15,11 +15,14 @@ console.log("RAZORPAY_PLAN_ID:", process.env.RAZORPAY_PLAN_ID ? "✅ Set" : "❌
 console.log("Attempting to connect to MongoDB...");
 console.log("Connection URI format check:", process.env.MONGO_DB_URI ? "✅ URI provided" : "❌ URI missing");
 
-// Add retry logic for MongoDB connection
+// Add retry logic for MongoDB connection with better error reporting
 const connectDB = async () => {
   try {
+    console.log("🔗 Attempting MongoDB connection...");
+    console.log("🔍 Connection URI (masked):", process.env.MONGO_DB_URI?.replace(/\/\/.*@/, '//***:***@'));
+    
     await mongoose.connect(process.env.MONGO_DB_URI, {
-      serverSelectionTimeoutMS: 30000, // Increase timeout to 30s
+      serverSelectionTimeoutMS: 10000, // Reduce timeout to 10s for faster feedback
       socketTimeoutMS: 45000,
       family: 4, // Use IPv4, skip trying IPv6
       maxPoolSize: 10,
@@ -29,6 +32,11 @@ const connectDB = async () => {
     console.log("✅ MongoDB connected successfully");
   } catch (err) {
     console.error("❌ MongoDB connection error:", err.message);
+    console.error("🔍 Error code:", err.code);
+    console.error("🔍 Error name:", err.name);
+    if (err.reason) {
+      console.error("🔍 Error reason:", err.reason);
+    }
     console.log("🔄 Retrying MongoDB connection in 5 seconds...");
     setTimeout(connectDB, 5000); // Retry after 5 seconds
   }
@@ -76,7 +84,7 @@ const donationSchema = new mongoose.Schema({
 
 const Donation = mongoose.model('Donation', donationSchema);
 
-// Health check endpoint
+// Health check endpoint with detailed connection info
 app.get('/', (req, res) => {
   const mongoStatus = mongoose.connection.readyState;
   const mongoStatusText = {
@@ -86,12 +94,27 @@ app.get('/', (req, res) => {
     3: '⚠️  Disconnecting'
   }[mongoStatus] || '❓ Unknown';
 
+  // Get detailed connection info
+  const connectionInfo = {
+    host: mongoose.connection.host || 'Not connected',
+    name: mongoose.connection.name || 'No database selected',
+    port: mongoose.connection.port || 'Unknown',
+    readyState: mongoStatus
+  };
+
   res.json({ 
     status: '✅ Backend is running',
     timestamp: new Date().toISOString(),
     mongodb: mongoStatusText,
     mongodb_ready: mongoStatus === 1,
     mongodb_state_code: mongoStatus,
+    mongodb_details: connectionInfo,
+    connection_uri_check: {
+      uri_provided: !!process.env.MONGO_DB_URI,
+      uri_format_ok: process.env.MONGO_DB_URI?.includes('mongodb+srv://'),
+      has_database_name: process.env.MONGO_DB_URI?.includes('/reiwametta_foundation'),
+      uri_preview: process.env.MONGO_DB_URI?.replace(/\/\/.*@/, '//***:***@')
+    },
     razorpay_key: process.env.RAZORPAY_KEY_ID ? '✅ Configured' : '❌ Missing',
     razorpay_key_preview: process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 12) + '...' : 'Not set',
     cors_origins: [
@@ -104,7 +127,12 @@ app.get('/', (req, res) => {
       RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ? '✅ Set' : '❌ Missing',
       RAZORPAY_PLAN_ID: process.env.RAZORPAY_PLAN_ID ? '✅ Set' : '❌ Missing'
     },
-    help: mongoStatus !== 1 ? 'If MongoDB is not connected, whitelist Vercel IPs in MongoDB Atlas Network Access' : null
+    troubleshooting: mongoStatus !== 1 ? {
+      step1: 'Check MongoDB Atlas - is your cluster running?',
+      step2: 'Check Network Access - add 0.0.0.0/0 to IP whitelist',
+      step3: 'Check Database Access - ensure user has read/write permissions',
+      step4: 'Verify connection string has correct username, password, and database name'
+    } : null
   });
 });
 
