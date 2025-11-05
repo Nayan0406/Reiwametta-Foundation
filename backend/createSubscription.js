@@ -208,6 +208,7 @@ app.post('/save-payment', async (req, res) => {
     }
     
     const { paymentId, amount, name, email, contact, address, pincode, message } = req.body;
+  const { isRecurring, subscriptionId } = req.body || {};
     
     // Validate required fields
     if (!paymentId || !amount) {
@@ -227,7 +228,8 @@ app.post('/save-payment', async (req, res) => {
       address: String(address || ''),
       pincode: String(pincode || ''),
       amount: Number(amount),
-      isRecurring: false,
+      isRecurring: Boolean(isRecurring || false),
+      subscriptionId: subscriptionId || undefined,
       paymentId: String(paymentId),
       status: 'completed',
       message: String(message || '')
@@ -251,6 +253,50 @@ app.post('/save-payment', async (req, res) => {
       error: err.message,
       details: err.name
     });
+  }
+});
+
+// POST /create-subscription - create a Razorpay subscription for recurring donations
+app.post('/create-subscription', async (req, res) => {
+  try {
+    console.log('🔁 Create subscription request body:', req.body);
+
+    if (!process.env.RAZORPAY_PLAN_ID) {
+      console.error('❌ RAZORPAY_PLAN_ID not configured');
+      return res.status(500).json({ error: 'Plan ID not configured on server' });
+    }
+
+    // Optionally, client can send customer details; we'll include them if provided
+    const { name, email, contact } = req.body || {};
+
+    const subscriptionOptions = {
+      plan_id: process.env.RAZORPAY_PLAN_ID,
+      customer_notify: 1,
+      // You can set `total_count` for fixed number of cycles or omit for indefinite
+      // total_count: 12, // 12 months for example
+    };
+
+    // Razorpay requires either `total_count` or `end_at` when creating a subscription
+    // Some plans are configured to require a fixed number of billing cycles. To
+    // support that, allow the client to pass `total_count` in the body, or read
+    // from RAZORPAY_SUBSCRIPTION_CYCLES env var. If neither is provided we default
+    // to 12 cycles (one year) to avoid BAD_REQUEST_ERROR from Razorpay.
+    const totalCountFromBody = (req.body && typeof req.body.total_count !== 'undefined') ? Number(req.body.total_count) : undefined;
+    const totalCountFromEnv = process.env.RAZORPAY_SUBSCRIPTION_CYCLES ? Number(process.env.RAZORPAY_SUBSCRIPTION_CYCLES) : undefined;
+    const totalCount = totalCountFromBody || totalCountFromEnv || 12;
+    subscriptionOptions.total_count = totalCount;
+    console.log('ℹ️ Subscription total_count set to', totalCount);
+
+    console.log('➡️ Creating subscription with options:', subscriptionOptions);
+
+    const subscription = await razorpay.subscriptions.create(subscriptionOptions);
+    console.log('✅ Subscription created:', subscription.id);
+
+    // Return minimal details needed by frontend to open checkout
+    res.json({ success: true, subscriptionId: subscription.id, subscription });
+  } catch (err) {
+    console.error('❌ Error creating subscription:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
